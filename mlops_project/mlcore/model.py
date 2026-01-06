@@ -17,14 +17,14 @@ class TextsClassifier(nn.Module):
         self.fc2 = nn.Linear(hidden_dim, 1)
         self.dropout = nn.Dropout(dropout)
 
-    #     self._init_weights()
+        self._init_weights()
 
-    # def _init_weights(self):
-    #     """Initialize weights with appropriate scaling"""
-    #     for module in [self.fc1, self.fc2]:
-    #         nn.init.xavier_uniform_(module.weight)
-    #         if module.bias is not None:
-    #             nn.init.zeros_(module.bias)
+    def _init_weights(self):
+        """Initialize weights with appropriate scaling"""
+        for module in [self.fc1, self.fc2]:
+            nn.init.xavier_uniform_(module.weight)
+            if module.bias is not None:
+                nn.init.zeros_(module.bias)
 
     def forward(self, x):
         x = self.norm(x)
@@ -41,31 +41,42 @@ class LightningClassifier(L.LightningModule):
         self.criterion = nn.BCELoss()
 
     def forward(self, inputs):
-        print(inputs)
         probs = self.model(inputs)
-        return (probs > 0.5).float()
-
+        return probs
+    
     def training_step(self, batch):
         inputs, target = batch
         output = self.model(inputs)
         loss = self.criterion(output.reshape(-1), target)
+
+        preds = (output > 0.5).float()
+        correct = (preds.reshape(-1) == target).float()
+        accuracy = correct.sum() / len(correct)
         self.log(
             "train_loss", loss, prog_bar=True, logger=True, on_step=True, on_epoch=True
         )
+        self.log(
+            "train_accuracy", accuracy, prog_bar=True, logger=True, on_step=True, on_epoch=True
+        )        
         return loss
 
     def validation_step(self, batch):
         inputs, target = batch
         output = self.model(inputs)
         loss = self.criterion(output.reshape(-1), target)
+
+        preds = (output > 0.5).float()
+        correct = (preds.reshape(-1) == target).float()
+        accuracy = correct.sum() / len(correct)        
         self.log(
             "valid_loss", loss, prog_bar=True, logger=True, on_step=True, on_epoch=True
         )
+        self.log(
+            "valid_accuracy", accuracy, prog_bar=True, logger=True, on_step=True, on_epoch=True
+        )     
 
     def on_before_optimizer_step(self, optimizer):
-        """Clip gradients to prevent explosion"""
-        # Gradient clipping
         torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
 
     def configure_optimizers(self):
-        return torch.optim.SGD(self.model.parameters(), lr=1e-10)
+        return torch.optim.AdamW(self.model.parameters(), lr=1e-5)

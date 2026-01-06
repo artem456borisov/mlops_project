@@ -7,21 +7,10 @@ from torch.utils.data import DataLoader, Dataset
 
 class M4GTDataset(Dataset):
     def __init__(self, data_path: str, test: bool = True, cut_dataset=False):
-        # self.label_mapping = {
-        #     'human_text': 0,
-        #     'machine_text': 1,
-        # }
         try:
-            # with open(data_path, 'r') as f:
-            #     self.data = json.load(f)
             with open(data_path, "rb") as f:
                 self.data = dill.load(f)
-            # if test:
-            #     if cut_dataset:
-            #         self.data = self.data[0:1000]
-            #     for i in self.data:
-            #         i['embedding'] = torch.randint(low=0, high=30000, size=(1, 512), dtype=torch.float)
-            #         i['label'] = torch.tensor(i['label'], dtype=torch.float)
+                self.data = self.data.dropna(subset=['embeddings'])
 
         except Exception as e:
             print(f"Unable to read pkl: {e}")
@@ -42,7 +31,7 @@ class M4GTDataModule(L.LightningDataModule):
         val_data_dir: str = None,
         test_data_dir: str = None,
         predict_data_dir: str = None,
-        train_batch_size: int = 4,
+        train_batch_size: int = 64,
         predict_batch_size: int = 128,
     ) -> None:
         super().__init__()
@@ -69,10 +58,10 @@ class M4GTDataModule(L.LightningDataModule):
         )
 
     def val_dataloader(self):
-        return DataLoader(self.val_dataset)
+        return DataLoader(self.val_dataset, batch_size=self.train_batch_size)
 
     def test_dataloader(self):
-        return DataLoader(self.test_dataset)
+        return DataLoader(self.test_dataset, batch_size=self.train_batch_size)
 
     def predict_dataloader(self):
-        return DataLoader(self.predict_dataset)
+        return DataLoader(self.predict_dataset, batch_size=self.train_batch_size)

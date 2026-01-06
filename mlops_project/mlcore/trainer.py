@@ -1,4 +1,5 @@
 import fire
+import sys
 import hydra
 import lightning as L
 from dataset import M4GTDataModule
@@ -11,7 +12,7 @@ from utils import get_git_commit
 
 
 @hydra.main(version_base=None, config_path="../../config", config_name="config")
-def main(cfg: DictConfig) -> None:
+def train(cfg: DictConfig) -> None:
     L.seed_everything(cfg.random_state)
     print("started running")
     mlf_logger = MLFlowLogger(
@@ -44,6 +45,13 @@ def main(cfg: DictConfig) -> None:
     trainer.fit(model=model_module, datamodule=data_module)
     print("ended running")
 
+def main(**kwargs):
+    if kwargs:
+        overrides = []
+        for key, value in kwargs.items():
+            overrides.append(f"{key}={value}")
+        sys.argv = [sys.argv[0]] + overrides
+    train()
 
 if __name__ == "__main__":
     fire.Fire(main)
